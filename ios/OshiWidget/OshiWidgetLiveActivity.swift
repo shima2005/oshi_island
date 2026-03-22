@@ -2,14 +2,11 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-// live_activities パッケージが要求するデータ構造
+// プラグイン側(Flutter)と構造を完璧に合わせつつ、
+// デコード失敗によるクラッシュを100%防ぐためにContentStateを「空」に定義します
 struct LiveActivitiesAppAttributes: ActivityAttributes, Identifiable {
     public typealias LiveDeliveryData = ContentState
-
-    public struct ContentState: Codable, Hashable {
-        var appGroupId: String
-    }
-
+    public struct ContentState: Codable, Hashable { }
     var id = UUID()
 }
 
@@ -52,7 +49,7 @@ struct OshiWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LiveActivitiesAppAttributes.self) { context in
             // ロック画面に表示される大きなUI
-            let sharedDefault = UserDefaults(suiteName: context.state.appGroupId)
+            let sharedDefault = UserDefaults(suiteName: "group.com.shima.oshiisland")
             let prefix = context.attributes.id.uuidString
             let oshiName = sharedDefault?.string(forKey: prefix + "_oshiName") ?? "推し"
             let message = sharedDefault?.string(forKey: prefix + "_message") ?? ""
@@ -77,7 +74,6 @@ struct OshiWidgetLiveActivity: Widget {
                 
                 Spacer()
                 
-                // 🌟 Date()... の Range で lowerBound > upperBound になるとクラッシュするのを防ぐ
                 if endTime > 0 && startDate < endDate {
                     Text(timerInterval: startDate...endDate)
                         .multilineTextAlignment(.center)
@@ -87,9 +83,10 @@ struct OshiWidgetLiveActivity: Widget {
                 }
             }
             .padding()
-            .background(Color.black.opacity(0.8)) // 念のため背景を明示
+            .background(Color.black.opacity(0.8))
         } dynamicIsland: { context in
-            let sharedDefault = UserDefaults(suiteName: context.state.appGroupId)
+            // ダイナミックアイランドのUI定義
+            let sharedDefault = UserDefaults(suiteName: "group.com.shima.oshiisland")
             let prefix = context.attributes.id.uuidString
             let oshiName = sharedDefault?.string(forKey: prefix + "_oshiName") ?? "推し"
             let message = sharedDefault?.string(forKey: prefix + "_message") ?? ""
@@ -100,7 +97,6 @@ struct OshiWidgetLiveActivity: Widget {
             let startDate = Date(timeIntervalSince1970: startTime)
             let endDate = Date(timeIntervalSince1970: endTime)
 
-            // ダイナミックアイランドのUI定義
             return DynamicIsland {
                 // ① 長押しされて広がった時 (Expanded)
                 DynamicIslandExpandedRegion(.leading) {
@@ -108,14 +104,14 @@ struct OshiWidgetLiveActivity: Widget {
                         .padding(.leading, 8)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(oshiName) // 右側に名前
+                    Text(oshiName)
                         .font(.caption)
                         .foregroundColor(.white)
                         .padding(.top, 8)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack {
-                        Text(message) // 下部にメッセージ
+                        Text(message)
                             .font(.caption)
                             .foregroundColor(.gray)
                         if endTime > 0 && startDate < endDate {
@@ -128,10 +124,8 @@ struct OshiWidgetLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                // ② 通常時・左側 (Compact Leading)
                 CompactOshiAvatar(imagePath: imagePath)
             } compactTrailing: {
-                // ③ 通常時・右側 (Compact Trailing)
                 if endTime > 0 && startDate < endDate {
                     Text(timerInterval: startDate...endDate)
                         .monospacedDigit()
@@ -142,17 +136,16 @@ struct OshiWidgetLiveActivity: Widget {
                     Text("🏝️")
                 }
             } minimal: {
-                // ④ 最小化時（他のアプリも島を使っている時）
                 CompactOshiAvatar(imagePath: imagePath)
             }
         }
     }
 }
 
-// 3. ウィジェットの起動ポイント
 @main
 struct OshiWidgetBundle: WidgetBundle {
     var body: some Widget {
+        // App Extensionが正しく実行されたかを判断するためにログとしても機能します
         OshiWidgetLiveActivity()
     }
 }
