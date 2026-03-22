@@ -18,7 +18,6 @@ jobs:
           BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
           KEYCHAIN_PASSWORD: "temp_runner_password"
         run: |
-          # 証明書とプロファイルをMac内に復元
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
@@ -26,16 +25,16 @@ jobs:
           echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
 
-          # Macのキーチェーン（セキュリティ保管庫）を作成して証明書をインストール
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-          # プロファイルを所定のフォルダに配置
+          # 🌟真犯人1の対策：プロファイルの中身からUUIDを抜き出して、正しいファイル名で保存し直す！
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i $PP_PATH))
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -45,13 +44,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # 🌟真犯人2の対策：ビルド直前に、Mac側で強制的に「Manual」に書き換えさせる！
+      - name: Force Manual Code Signing
+        run: |
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+
       - name: Build and Export IPA
-        # 「ipaコマンド」を使い、開発用プロファイルで出力するよう明示的に指示します
         run: flutter build ipa --release --export-method development
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: oshiisland-app
-          # ipaコマンドを使うと出力先のフォルダが少し変わります
           path: build/ios/ipa/*.ipa
