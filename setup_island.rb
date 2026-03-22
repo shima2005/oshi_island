@@ -30,6 +30,7 @@ target.build_configurations.each do |config|
   config.build_settings['PRODUCT_NAME'] = target_name
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = bundle_id
   config.build_settings['INFOPLIST_FILE'] = "OshiWidget/Info.plist"
+  config.build_settings['CODE_SIGN_ENTITLEMENTS'] = "Runner/Runner.entitlements"
   config.build_settings['CODE_SIGN_ENTITLEMENTS'] = "OshiWidget/OshiWidget.entitlements"
   config.build_settings['SWIFT_VERSION'] = '5.0'
   config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
