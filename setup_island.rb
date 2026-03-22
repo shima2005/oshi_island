@@ -8,6 +8,12 @@ bundle_id = 'com.shima.oshiisland.DynamicIsland'
 
 puts "島の開拓を開始します: #{target_name}"
 
+# 🌟 重複エラー防止の安全装置：既にターゲットがあれば一度削除する
+existing_target = project.targets.find { |t| t.name == target_name }
+if existing_target
+  existing_target.remove_from_project
+end
+
 target = project.new_target(:app_extension, target_name, :ios, '16.1')
 
 group = project.main_group.find_subpath('OshiWidget') || project.main_group.new_group('OshiWidget', 'OshiWidget')
@@ -18,9 +24,10 @@ entitlements_file = group.files.find { |f| f.path == 'OshiWidget.entitlements' }
 target.add_file_references([swift_file])
 
 target.build_configurations.each do |config|
+  config.build_settings['PRODUCT_NAME'] = target_name # 🌟 ココ！名無し（.appex）になるのを防ぐ！
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = bundle_id
   config.build_settings['INFOPLIST_FILE'] = "OshiWidget/Info.plist"
-  config.build_settings['CODE_SIGN_ENTITLEMENTS'] = "OshiWidget/OshiWidget.entitlements" # 🌟 通行証を追加！
+  config.build_settings['CODE_SIGN_ENTITLEMENTS'] = "OshiWidget/OshiWidget.entitlements"
   config.build_settings['SWIFT_VERSION'] = '5.0'
   config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
   config.build_settings['DEVELOPMENT_TEAM'] = ENV['TEAM_ID'] || ''
@@ -36,6 +43,7 @@ if embed_phase.nil?
   embed_phase.symbol_dst_subfolder_spec = :plug_ins
 end
 
+# 🌟 名無しファイルが重複コピーされるのを防ぐ
 unless embed_phase.files_references.include?(target.product_reference)
   build_file = embed_phase.add_file_reference(target.product_reference)
   build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
