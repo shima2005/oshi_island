@@ -86,4 +86,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: oshiisland-app
-          path: build/ios/ipa/*.ipa
+          path: build/**/*.ipa
