@@ -78,12 +78,20 @@ jobs:
           </plist>
           EOF
 
-      - name: Build and Export IPA
-        # 🌟 作成した指示書（ExportOptions.plist）を渡してIPAを出力！
-        run: flutter build ipa --release --export-options-plist=ExportOptions.plist
+      - name: Build iOS App
+        # ipaコマンドではなく、シンプルに署名済みのアプリ本体（.app）を作ります
+        run: flutter build ios --release
+
+      - name: Create IPA Manually
+        # アプリ本体を「Payload」というフォルダに入れてZip化し、自力で.ipaを錬成します！
+        run: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload
+          cd build/ios/iphoneos
+          zip -qr oshiisland.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: oshiisland-app
-          path: build/**/*.ipa
+          path: build/ios/iphoneos/oshiisland.ipa
