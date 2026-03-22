@@ -24,7 +24,6 @@ plist_file = group.files.find { |f| f.path == 'Info.plist' } || group.new_file('
 entitlements_file = group.files.find { |f| f.path == 'OshiWidget.entitlements' } || group.new_file('OshiWidget.entitlements')
 
 target.add_file_references([swift_file])
-runner_target.add_file_references([swift_file])
 
 # 4. ビルド設定
 target.build_configurations.each do |config|
