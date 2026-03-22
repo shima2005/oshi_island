@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preference_app_group/shared_preference_app_group.dart';
+import 'package:live_activities/live_activities.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,43 +13,101 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Oshi Island',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.pinkAccent,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
+        fontFamily:
+            'M_PLUS_Rounded_1c', // Assuming a rounded font is nice if added later
       ),
       home: const OshiTestScreen(),
     );
   }
 }
 
-class OshiTestScreen extends StatelessWidget {
+class OshiTestScreen extends StatefulWidget {
   const OshiTestScreen({super.key});
 
-  // App Groupにデータを保存する関数
-  Future<void> saveOshiData(BuildContext context) async {
+  @override
+  State<OshiTestScreen> createState() => _OshiTestScreenState();
+}
+
+class _OshiTestScreenState extends State<OshiTestScreen> {
+  final _liveActivitiesPlugin = LiveActivities();
+  String? _activityId;
+  bool _isTimerActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // ⚠️ご自身のApp Group IDを指定
+    _liveActivitiesPlugin.init(appGroupId: 'group.com.shima.oshiisland');
+  }
+
+  Future<void> _startTimer() async {
     try {
-      // 1. Apple Developer Portalで作成したApp GroupのIDを設定
-      // ⚠️必ずご自身の登録したID（group.com.shima.oshiisland 等）に書き換えてください！
-      String appGroupId = 'group.com.shima.oshiisland'; 
-      await SharedPreferenceAppGroup.setAppGroup(appGroupId);
+      // 現在時刻から3分後のタイムスタンプ（秒）を取得
+      final endTime =
+          DateTime.now()
+              .add(const Duration(minutes: 3))
+              .millisecondsSinceEpoch /
+          1000.0;
 
-      // 2. 共通の箱に推しの名前を保存
-      await SharedPreferenceAppGroup.setString('oshi_name', 'ダッフィー');
+      // live_activities パッケージは内部でデータをApp Group（UserDefaults）に保存してくれる
+      final activityId = await _liveActivitiesPlugin.createActivity(
+        'oshi_timer',
+        {'oshiName': 'ダッフィー', 'message': '集中してて偉い！', 'endTime': endTime},
+      );
 
-      // 3. 成功したことを画面下にポップアップ（SnackBar）で表示
-      if (context.mounted) {
+      setState(() {
+        _activityId = activityId;
+        _isTimerActive = true;
+      });
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('テスト成功'),
-            duration: Duration(seconds: 3),
+            content: Text('島に推しが遊びに来ました🏝️'),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
-      // エラー時も画面に表示してデバッグしやすくする
-      if (context.mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('エラーが発生しました: $e')));
+      }
+    }
+  }
+
+  Future<void> _endTimer() async {
+    try {
+      if (_activityId != null) {
+        await _liveActivitiesPlugin.endActivity(_activityId!);
+      } else {
+        await _liveActivitiesPlugin.endAllActivities();
+      }
+
+      setState(() {
+        _activityId = null;
+        _isTimerActive = false;
+      });
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラーが発生しました: $e')),
+          const SnackBar(
+            content: Text('お疲れ様、またね！'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('エラー: $e')));
       }
     }
   }
@@ -58,18 +116,69 @@ class OshiTestScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('推しアイランド テスト画面'),
+        title: const Text(
+          '推しアイランド',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        centerTitle: true,
       ),
       body: Center(
-        child: ElevatedButton(
-          onPressed: () => saveOshiData(context),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            backgroundColor: Colors.pink.shade100,
-          ),
-          child: const Text('推しをApp Groupに保存！'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.pink.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: const Text('🐻', style: TextStyle(fontSize: 80)),
+            ),
+            const SizedBox(height: 48),
+            Text(
+              _isTimerActive ? '3分タイマー実行中...' : '推しと一緒に作業しよう！',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 32),
+            if (!_isTimerActive)
+              ElevatedButton.icon(
+                onPressed: _startTimer,
+                icon: const Icon(Icons.timer),
+                label: const Text('3分タイマーを開始'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  backgroundColor: Colors.pinkAccent,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                ),
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: _endTimer,
+                icon: const Icon(Icons.stop),
+                label: const Text('タイマーを終了'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  backgroundColor: Colors.grey.shade300,
+                  foregroundColor: Colors.black87,
+                ),
+              ),
+          ],
         ),
       ),
     );
