@@ -47,5 +47,7 @@
 	<true/>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>カメラロールからダイナミックアイランドに表示するための画像を選ぶために使用します</string>
 </dict>
 </plist>

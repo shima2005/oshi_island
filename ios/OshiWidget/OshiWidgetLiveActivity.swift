@@ -13,6 +13,41 @@ struct LiveActivitiesAppAttributes: ActivityAttributes, Identifiable {
     var id = UUID()
 }
 
+// 共通のUIコンポーネント（画像を読み込む）
+struct OshiAvatar: View {
+    let imagePath: String?
+    
+    var body: some View {
+        if let path = imagePath, let uiImage = UIImage(contentsOfFile: path) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+        } else {
+            Text("🐻")
+                .font(.title2)
+        }
+    }
+}
+
+// Compact用の小さなアバター
+struct CompactOshiAvatar: View {
+    let imagePath: String?
+    
+    var body: some View {
+        if let path = imagePath, let uiImage = UIImage(contentsOfFile: path) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 24, height: 24)
+                .clipShape(Circle())
+        } else {
+            Text("🐻")
+        }
+    }
+}
+
 struct OshiWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LiveActivitiesAppAttributes.self) { context in
@@ -22,13 +57,21 @@ struct OshiWidgetLiveActivity: Widget {
             let oshiName = sharedDefault?.string(forKey: prefix + "_oshiName") ?? "推し"
             let message = sharedDefault?.string(forKey: prefix + "_message") ?? ""
             let endTime = sharedDefault?.double(forKey: prefix + "_endTime") ?? 0
+            let imagePath = sharedDefault?.string(forKey: prefix + "_image")
             
-            VStack {
-                Text("\(oshiName)が島にいます🏝️")
-                    .font(.headline)
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+            HStack(spacing: 16) {
+                OshiAvatar(imagePath: imagePath)
+                
+                VStack(alignment: .leading) {
+                    Text("\(oshiName)が島にいます🏝️")
+                        .font(.headline)
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                
+                Spacer()
+                
                 if endTime > 0 {
                     Text(timerInterval: Date()...Date(timeIntervalSince1970: endTime))
                         .multilineTextAlignment(.center)
@@ -43,13 +86,13 @@ struct OshiWidgetLiveActivity: Widget {
             let oshiName = sharedDefault?.string(forKey: prefix + "_oshiName") ?? "推し"
             let message = sharedDefault?.string(forKey: prefix + "_message") ?? ""
             let endTime = sharedDefault?.double(forKey: prefix + "_endTime") ?? 0
+            let imagePath = sharedDefault?.string(forKey: prefix + "_image")
 
             // ダイナミックアイランドのUI定義
             return DynamicIsland {
                 // ① 長押しされて広がった時 (Expanded)
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("🐻") // 左側にダッフィー風のアイコン
-                        .font(.title2)
+                    OshiAvatar(imagePath: imagePath)
                         .padding(.leading, 8)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
@@ -71,7 +114,7 @@ struct OshiWidgetLiveActivity: Widget {
                 }
             } compactLeading: {
                 // ② 通常時・左側 (Compact Leading)
-                Text("🐻")
+                CompactOshiAvatar(imagePath: imagePath)
             } compactTrailing: {
                 // ③ 通常時・右側 (Compact Trailing)
                 if endTime > 0 {
@@ -84,7 +127,7 @@ struct OshiWidgetLiveActivity: Widget {
                 }
             } minimal: {
                 // ④ 最小化時（他のアプリも島を使っている時）
-                Text("🐻")
+                CompactOshiAvatar(imagePath: imagePath)
             }
         }
     }
