@@ -11,34 +11,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Apple Certificate and Provisioning Profile
+      - name: Install Apple Certificate and Provisioning Profiles
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
           BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+          WIDGET_PROVISION_PROFILE_BASE64: ${{ secrets.WIDGET_PROFILE_BASE64 }} # 🌟 島のプロファイルを追加
           KEYCHAIN_PASSWORD: "temp_runner_password"
         run: |
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          WIDGET_PP_PATH=$RUNNER_TEMP/widget_pp.mobileprovision
 
           echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          echo -n "$WIDGET_PROVISION_PROFILE_BASE64" | base64 --decode -o $WIDGET_PP_PATH
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
-
-          # 🌟 これが最後の鍵！CI環境で「見えないポップアップ」を回避してビルドツールにアクセス権を与える！
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          
+          # メインアプリのプロファイル処理
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i $PP_PATH))
+          REAL_TEAM_ID=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin <<< $(security cms -D -i $PP_PATH))
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
           
+          # 🌟 島のプロファイル処理
+          WIDGET_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i $WIDGET_PP_PATH))
+          cp $WIDGET_PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$WIDGET_UUID.mobileprovision
+          
           echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
+          echo "WIDGET_PROFILE_UUID=$WIDGET_UUID" >> $GITHUB_ENV
+          echo "TEAM_ID=$REAL_TEAM_ID" >> $GITHUB_ENV
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -48,42 +57,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Force Manual Code Signing & Create Export Options
+      - name: Run setup_island.rb (Xcode Project Magic)
+        # 🌟 ここで魔法のスクリプトを実行して、島をプロジェクトに合体させます！
         run: |
-          # 1. 強制的にManualにする
+          gem install xcodeproj
+          ruby setup_island.rb
+
+      - name: Force Manual Code Signing
+        run: |
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
-          
-          # 2. プロファイルを直接指定する（ビルド/Archive用）
           echo "" >> ios/Flutter/Release.xcconfig
+          echo "DEVELOPMENT_TEAM=${{ env.TEAM_ID }}" >> ios/Flutter/Release.xcconfig
           echo "PROVISIONING_PROFILE_SPECIFIER=${{ env.PROFILE_UUID }}" >> ios/Flutter/Release.xcconfig
           echo "CODE_SIGN_IDENTITY=Apple Development" >> ios/Flutter/Release.xcconfig
-
-          # 3. 署名の「指示書（ExportOptions.plist）」を自動生成する（IPA書き出し用）
-          # ⚠️ もしBundle IDを変えていたら、下の com.shima.oshiisland の部分を合わせてください
-          cat <<EOF > ExportOptions.plist
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>development</string>
-            <key>teamID</key>
-            <string>5CTP4VBA64</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.shima.oshiisland</key>
-              <string>${{ env.PROFILE_UUID }}</string>
-            </dict>
-          </dict>
-          </plist>
-          EOF
+          echo "CODE_SIGN_ENTITLEMENTS=Runner/Runner.entitlements" >> ios/Flutter/Release.xcconfig
 
       - name: Build iOS App
-        # ipaコマンドではなく、シンプルに署名済みのアプリ本体（.app）を作ります
         run: flutter build ios --release
 
       - name: Create IPA Manually
-        # アプリ本体を「Payload」というフォルダに入れてZip化し、自力で.ipaを錬成します！
         run: |
           mkdir -p build/ios/iphoneos/Payload
           cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload
