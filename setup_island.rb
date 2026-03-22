@@ -4,7 +4,7 @@ project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
 target_name = 'OshiWidget'
 
 # ⚠️ 先ほどと同じく、ExtensionのBundle IDを入れてください！
-bundle_id = 'com.shima.oshiisland.DynamicIsland' 
+bundle_id = 'com.shima.oshiisland.DynamicIsland'
 
 puts "島の開拓を開始します: #{target_name}"
 
