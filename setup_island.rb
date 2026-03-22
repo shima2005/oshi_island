@@ -23,7 +23,8 @@ swift_file = group.files.find { |f| f.path == 'OshiWidgetLiveActivity.swift' } |
 plist_file = group.files.find { |f| f.path == 'Info.plist' } || group.new_file('Info.plist')
 entitlements_file = group.files.find { |f| f.path == 'OshiWidget.entitlements' } || group.new_file('OshiWidget.entitlements')
 
-target.add_file_references([swift_file])
+source_phase = target.source_build_phase
+source_phase.add_file_reference(swift_file) unless source_phase.files_references.include?(swift_file)
 
 # 4. ビルド設定
 target.build_configurations.each do |config|
