@@ -31,11 +31,13 @@ jobs:
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
+          # 🌟 これが最後の鍵！CI環境で「見えないポップアップ」を回避してビルドツールにアクセス権を与える！
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i $PP_PATH))
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
           
-          # 🌟 環境変数としてUUIDを保存（次のステップの指示書で使うため）
           echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
 
       - name: Set up Flutter
