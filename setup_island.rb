@@ -20,7 +20,6 @@ target = project.new_target(:app_extension, target_name, :ios, '16.1')
 # 3. フォルダとファイルの登録
 group = project.main_group.find_subpath('OshiWidget') || project.main_group.new_group('OshiWidget', 'OshiWidget')
 swift_file = group.files.find { |f| f.path == 'OshiWidgetLiveActivity.swift' } || group.new_file('OshiWidgetLiveActivity.swift')
-plist_file = group.files.find { |f| f.path == 'Info.plist' } || group.new_file('Info.plist')
 entitlements_file = group.files.find { |f| f.path == 'OshiWidget.entitlements' } || group.new_file('OshiWidget.entitlements')
 
 source_phase = target.source_build_phase
@@ -30,12 +29,13 @@ source_phase.add_file_reference(swift_file) unless source_phase.files_references
 target.build_configurations.each do |config|
   config.build_settings['PRODUCT_NAME'] = target_name
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = bundle_id
-  config.build_settings['INFOPLIST_FILE'] = "OshiWidget/Info.plist"
-  config.build_settings['CODE_SIGN_ENTITLEMENTS'] = "Runner/Runner.entitlements"
+  config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
+  config.build_settings['CURRENT_PROJECT_VERSION'] = '1'
+  config.build_settings['MARKETING_VERSION'] = '1.0'
   config.build_settings['CODE_SIGN_ENTITLEMENTS'] = "OshiWidget/OshiWidget.entitlements"
   config.build_settings['SWIFT_VERSION'] = '5.0'
   config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
-  config.build_settings['DEVELOPMENT_TEAM'] = ENV['TEAM_ID'] || 'YOUR_TEAM_ID' # 安全のためプレースホルダーに変更
+  config.build_settings['DEVELOPMENT_TEAM'] = ENV['TEAM_ID'] || 'YOUR_TEAM_ID'
   config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
   config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ENV['WIDGET_PROFILE_UUID'] || ''
   config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Development'
@@ -58,7 +58,9 @@ end
 
 unless embed_phase.files_references.include?(target.product_reference)
   build_file = embed_phase.add_file_reference(target.product_reference)
-  build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy', 'CodeSignOnCopy'] }
+  # 🌟 致命的バグ修正: CodeSignOnCopyを削除。App Extensionは自身のプロファイルで署名済みのため、
+  # ここでチェックを入れるとメインアプリの署名で上書きされ、iOS側で不正バイナリとしてロード拒否されていました。
+  build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
 end
 
 # 🌟 サイクルエラー対策：Embedフェーズをビルド順序の「最後」に移動
