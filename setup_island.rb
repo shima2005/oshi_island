@@ -56,7 +56,7 @@ end
 
 unless embed_phase.files_references.include?(target.product_reference)
   build_file = embed_phase.add_file_reference(target.product_reference)
-  build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
+  build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy', 'CodeSignOnCopy'] }
 end
 
 # 🌟 サイクルエラー対策：Embedフェーズをビルド順序の「最後」に移動
