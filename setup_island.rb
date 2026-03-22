@@ -34,7 +34,7 @@ target.build_configurations.each do |config|
   config.build_settings['CODE_SIGN_ENTITLEMENTS'] = "OshiWidget/OshiWidget.entitlements"
   config.build_settings['SWIFT_VERSION'] = '5.0'
   config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
-  config.build_settings['DEVELOPMENT_TEAM'] = ENV['TEAM_ID'] || '8379A74FLN' # 🌟 あなたのTeamIDをデフォルトに設定
+  config.build_settings['DEVELOPMENT_TEAM'] = ENV['TEAM_ID'] || 'YOUR_TEAM_ID' # 安全のためプレースホルダーに変更
   config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
   config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ENV['WIDGET_PROFILE_UUID'] || ''
   config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Development'
