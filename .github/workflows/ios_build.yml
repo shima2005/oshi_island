@@ -52,6 +52,7 @@ jobs:
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
           
           # 2. プロファイルを直接指定する（ビルド/Archive用）
+          echo "" >> ios/Flutter/Release.xcconfig
           echo "PROVISIONING_PROFILE_SPECIFIER=${{ env.PROFILE_UUID }}" >> ios/Flutter/Release.xcconfig
           echo "CODE_SIGN_IDENTITY=Apple Development" >> ios/Flutter/Release.xcconfig
 
