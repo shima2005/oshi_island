@@ -56,8 +56,12 @@ struct OshiWidgetLiveActivity: Widget {
             let prefix = context.attributes.id.uuidString
             let oshiName = sharedDefault?.string(forKey: prefix + "_oshiName") ?? "推し"
             let message = sharedDefault?.string(forKey: prefix + "_message") ?? ""
+            let startTime = sharedDefault?.double(forKey: prefix + "_startTime") ?? Date().timeIntervalSince1970
             let endTime = sharedDefault?.double(forKey: prefix + "_endTime") ?? 0
             let imagePath = sharedDefault?.string(forKey: prefix + "_image")
+            
+            let startDate = Date(timeIntervalSince1970: startTime)
+            let endDate = Date(timeIntervalSince1970: endTime)
             
             HStack(spacing: 16) {
                 OshiAvatar(imagePath: imagePath)
@@ -72,8 +76,9 @@ struct OshiWidgetLiveActivity: Widget {
                 
                 Spacer()
                 
-                if endTime > 0 {
-                    Text(timerInterval: Date()...Date(timeIntervalSince1970: endTime))
+                // 🌟 Date()... の Range で lowerBound > upperBound になるとクラッシュするのを防ぐ
+                if endTime > 0 && startDate < endDate {
+                    Text(timerInterval: startDate...endDate)
                         .multilineTextAlignment(.center)
                         .monospacedDigit()
                         .font(.headline)
@@ -85,8 +90,12 @@ struct OshiWidgetLiveActivity: Widget {
             let prefix = context.attributes.id.uuidString
             let oshiName = sharedDefault?.string(forKey: prefix + "_oshiName") ?? "推し"
             let message = sharedDefault?.string(forKey: prefix + "_message") ?? ""
+            let startTime = sharedDefault?.double(forKey: prefix + "_startTime") ?? Date().timeIntervalSince1970
             let endTime = sharedDefault?.double(forKey: prefix + "_endTime") ?? 0
             let imagePath = sharedDefault?.string(forKey: prefix + "_image")
+            
+            let startDate = Date(timeIntervalSince1970: startTime)
+            let endDate = Date(timeIntervalSince1970: endTime)
 
             // ダイナミックアイランドのUI定義
             return DynamicIsland {
@@ -104,8 +113,8 @@ struct OshiWidgetLiveActivity: Widget {
                     VStack {
                         Text(message) // 下部にメッセージ
                             .font(.caption)
-                        if endTime > 0 {
-                            Text(timerInterval: Date()...Date(timeIntervalSince1970: endTime))
+                        if endTime > 0 && startDate < endDate {
+                            Text(timerInterval: startDate...endDate)
                                 .multilineTextAlignment(.center)
                                 .monospacedDigit()
                                 .font(.headline)
@@ -117,8 +126,8 @@ struct OshiWidgetLiveActivity: Widget {
                 CompactOshiAvatar(imagePath: imagePath)
             } compactTrailing: {
                 // ③ 通常時・右側 (Compact Trailing)
-                if endTime > 0 {
-                    Text(timerInterval: Date()...Date(timeIntervalSince1970: endTime))
+                if endTime > 0 && startDate < endDate {
+                    Text(timerInterval: startDate...endDate)
                         .monospacedDigit()
                         .frame(maxWidth: 40)
                         .font(.caption2)

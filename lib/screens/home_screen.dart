@@ -26,8 +26,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _pickImage() async {
     try {
+      // 🌟 Widgetのメモリ制限（約30MB）を回避するため、あらかじめ画像を小さく圧縮して取得します
       final pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
+        maxWidth: 150,
+        maxHeight: 150,
+        imageQuality: 80,
       );
       if (pickedFile != null) {
         final bytes = await pickedFile.readAsBytes();
@@ -46,16 +50,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _startTimer() async {
     try {
-      final endTime =
-          DateTime.now()
-              .add(const Duration(minutes: 3))
-              .millisecondsSinceEpoch /
-          1000.0;
+      final now = DateTime.now();
+      final startTimeInSeconds = now.millisecondsSinceEpoch / 1000.0;
+      final endTimeInSeconds =
+          now.add(const Duration(minutes: 3)).millisecondsSinceEpoch / 1000.0;
 
       final Map<String, dynamic> activityData = {
         'oshiName': '手元の推し',
         'message': '集中してて偉い！',
-        'endTime': endTime,
+        'startTime': startTimeInSeconds,
+        'endTime': endTimeInSeconds,
       };
 
       if (_selectedImageBytes != null) {
