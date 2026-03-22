@@ -31,10 +31,12 @@ jobs:
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-          # 🌟真犯人1の対策：プロファイルの中身からUUIDを抜き出して、正しいファイル名で保存し直す！
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i $PP_PATH))
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          
+          # 🌟 環境変数としてUUIDを保存（次のステップの指示書で使うため）
+          echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -44,13 +46,38 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # 🌟真犯人2の対策：ビルド直前に、Mac側で強制的に「Manual」に書き換えさせる！
-      - name: Force Manual Code Signing
+      - name: Force Manual Code Signing & Create Export Options
         run: |
+          # 1. 強制的にManualにする
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          # 2. プロファイルを直接指定する（ビルド/Archive用）
+          echo "PROVISIONING_PROFILE_SPECIFIER=${{ env.PROFILE_UUID }}" >> ios/Flutter/Release.xcconfig
+          echo "CODE_SIGN_IDENTITY=Apple Development" >> ios/Flutter/Release.xcconfig
+
+          # 3. 署名の「指示書（ExportOptions.plist）」を自動生成する（IPA書き出し用）
+          # ⚠️ もしBundle IDを変えていたら、下の com.shima.oshiisland の部分を合わせてください
+          cat <<EOF > ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>development</string>
+            <key>teamID</key>
+            <string>5CTP4VBA64</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.shima.oshiisland</key>
+              <string>${{ env.PROFILE_UUID }}</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
 
       - name: Build and Export IPA
-        run: flutter build ipa --release --export-method development
+        # 🌟 作成した指示書（ExportOptions.plist）を渡してIPAを出力！
+        run: flutter build ipa --release --export-options-plist=ExportOptions.plist
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
